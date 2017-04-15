@@ -41,7 +41,7 @@ class QuoraFeatureGenerator:
                 
                 batch_records[id] = test_feature
 
-                if len(batch_records) == 100:
+                if len(batch_records) == 100000:
                     op = self.model.predict(list(batch_records.values()))
 
                     ct = 0
@@ -231,8 +231,8 @@ class LogisticClassifier:
     #http://stackoverflow.com/questions/34060332/how-to-get-predicted-class-labels-in-tensorflows-mnist-example
     def trainModel(self, input_features, labels):
         # Parameters
-        learning_rate = 0.01
-        training_epochs = 25
+        learning_rate = 0.06
+        training_epochs = 100
         batch_size = 1000
         display_step = 1
 
@@ -321,7 +321,7 @@ class LogisticClassifier:
             sess.run(init)
             predict = tf.argmax(self.pred,1)
             result = predict.eval(feed_dict={self.x: test_inputs},session=sess)
-            print(result)
+            #print(result)
                
         return result
 
