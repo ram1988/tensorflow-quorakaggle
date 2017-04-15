@@ -26,7 +26,8 @@ class QuoraFeatureGenerator:
       
     def predictTestData(self):
         #predictions = {}
-        
+        batch_records = {}
+
         with open("predicted.csv","a+") as op_file:
             for test_row in self.test_df.iterrows():
                 test_row = test_row[1]
@@ -36,20 +37,26 @@ class QuoraFeatureGenerator:
                 question1 = str(test_row["question1"])
                 question2 = str(test_row["question2"])
 
-                test_feature = self.__getTestDataVectors(question1,question2)
-            
-                op = self.model.predict(test_feature)
+                test_feature = self.__getTestDataVectors(question1,question2)     
                 
-                op = str(id)+","+str(op)
-                print(op) 
-                
-                op_file.write(op)
+                batch_records[id] = test_feature
+
+                if len(batch_records) == 100:
+                    op = self.model.predict(list(batch_records.values()))
+
+                    ct = 0
+                    for id in batch_records: 
+                        output = str(id)+","+str(op[ct])
+                        op_file.write(output+"\n")
+                        ct = ct+1 
+
+                    batch_records = {}
                 
         #return predictions
 
     def trainModel(self):
         df = pd.read_pickle("./train_features.pkl")
-        x_df = df.iloc[:,4:9]
+        x_df = pd.concat([df.iloc[:,4:6],df.iloc[:,8]],axis=1)
         y_df = df.iloc[:,9]
 
         print(x_df)
@@ -65,7 +72,7 @@ class QuoraFeatureGenerator:
         test_df = x_df.iloc[train_no:,:]
         test_labels = y_df.iloc[train_no:]
 
-        self.model = LogisticClassifier(5)
+        self.model = LogisticClassifier(3)
         self.model.trainModel(train_df,train_labels)
         self.model.validateModel(test_df,test_labels)
 
@@ -132,7 +139,7 @@ class QuoraFeatureGenerator:
             if word in question2_tokens:
                 common_words = common_words + 1
 
-        record = (cosine_similarity_score, levendis_score, len(question1_tokens), len(question2_tokens), common_words)
+        record = (cosine_similarity_score, levendis_score, common_words)
 
         return record
         
@@ -314,8 +321,9 @@ class LogisticClassifier:
             sess.run(init)
             predict = tf.argmax(self.pred,1)
             result = predict.eval(feed_dict={self.x: test_inputs},session=sess)
+            print(result)
                
-        return result[0]
+        return result
 
 
 if __name__ == '__main__':
