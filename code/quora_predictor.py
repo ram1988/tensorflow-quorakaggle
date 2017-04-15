@@ -11,7 +11,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from pandas import DataFrame
 
 
-class FeatureGenerator:
+class QuoraFeatureGenerator:
+   
+
     def __init__(self):
         train_file = "./train.csv/train.csv"
         test_file = "./test.csv/test.csv"
@@ -20,14 +22,59 @@ class FeatureGenerator:
         # self.word2vec_model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)
         self.train_df = pd.read_csv(train_file)
         self.test_df = pd.read_csv(test_file)
+      
+      
+    def predictTestData(self):
+        #predictions = {}
+        
+        with open("predicted.csv","a+") as op_file:
+            for test_row in self.test_df.iterrows():
+                test_row = test_row[1]
+                id = test_row["test_id"]
 
+                print("Processing and Predicting the row-->" + str(id))
+                question1 = str(test_row["question1"])
+                question2 = str(test_row["question2"])
+
+                test_feature = self.__getTestDataVectors(question1,question2)
+            
+                op = self.model.predict(test_feature)
+                
+                op = str(id)+","+str(op)
+                print(op) 
+                
+                op_file.write(op)
+                
+        #return predictions
+
+    def trainModel(self):
+        df = pd.read_pickle("./train_features.pkl")
+        x_df = df.iloc[:,4:9]
+        y_df = df.iloc[:,9]
+
+        print(x_df)
+        print(len(x_df))
+        print(len(y_df))
+    
+        train_no = int(0.8 * len(df))
+        #train_no = 100000
+        print(train_no)
+
+        train_df = x_df.iloc[0:train_no,:]
+        train_labels = y_df.iloc[0:train_no]
+        test_df = x_df.iloc[train_no:,:]
+        test_labels = y_df.iloc[train_no:]
+
+        self.model = LogisticClassifier(5)
+        self.model.trainModel(train_df,train_labels)
+        self.model.validateModel(test_df,test_labels)
 
     def generateTFIDFFeatures(self):
         
         total_records = []
         sigmoid = lambda x: 1 / (1 + math.exp(-x))
 
-        joint_df = pd.concat([self.train_df,self.test_df])
+        joint_df = self.train_df
 
         iterator = 0
         for df_row in joint_df.iterrows():
@@ -35,39 +82,26 @@ class FeatureGenerator:
 
             print("Processing the row-->" + str(iterator))
 
-            question1 = str(df_row["question1"]).lower()
-            question2 = str(df_row["question2"]).lower()
+            question1 = str(df_row["question1"])
+            question2 = str(df_row["question2"])
 
-            question1 = question1 if question1 != "nan" else ""
-            question2 = question2 if question2 != "nan" else ""
-
-            question1 = re.sub('\W+', ' ', question1)
-            question2 = re.sub('\W+', ' ', question2)
+            vectorized_q1, vectorized_q2 = self.__getTFIDFVectors(question1, question2)
 
             question1_tokens = question1.split()
             question2_tokens = question2.split()
- 
+
             common_words = 0
             for word in question1_tokens:
                 if word in question2_tokens:
                     common_words = common_words + 1
-
-           
-            vocabulary = question1_tokens + question2_tokens
-            vocabulary = list(set(vocabulary))
-
-            vectorizer = TfidfVectorizer(analyzer='word', vocabulary=vocabulary)
-            vectorized_q1 = vectorizer.fit_transform([question1])
-            vectorized_q2 = vectorizer.transform([question2])
-
+            
             cosine_similarity_score = self.__evaluateCosineSimilarity(vectorized_q1, vectorized_q2)
             cosine_similarity_score = cosine_similarity_score[0][0]  
             
             # wmd_score = self.__evaluateWMD(question1,question2)
             levendis_score = sigmoid(self.__evaluateLevensteinDistance(question1, question2))
 
-            record = (str(df_row["question1"]).lower(),str(df_row["question2"]).lower(),
-            vectorized_q1, vectorized_q2, cosine_similarity_score, levendis_score, len(question1_tokens), len(question2_tokens), common_words,
+            record = (vectorized_q1, vectorized_q2, cosine_similarity_score, levendis_score, len(question1_tokens), len(question2_tokens), common_words,
             df_row["is_duplicate"] if "is_duplicate" in df_row else None)
             
             total_records.append(record)
@@ -75,17 +109,57 @@ class FeatureGenerator:
 
         train_len = len(self.train_df)
         self.train_data = total_records[0:train_len]
-        self.test_data = total_records[train_len:]
         
         train_dataframe = DataFrame(data=self.train_data)
         train_dataframe.to_pickle("./train_features.pkl")
 
-        test_dataframe = DataFrame(data=self.test_data)
-        test_dataframe.to_pickle("./test_features.pkl")
+    def __getTestDataVectors(self, question1, question2):
 
+        vectorized_q1, vectorized_q2 = self.__getTFIDFVectors(question1, question2)
+        sigmoid = lambda x: 1 / (1 + math.exp(-x))
 
-        # return self.train_data
+        cosine_similarity_score = self.__evaluateCosineSimilarity(vectorized_q1, vectorized_q2)
+        cosine_similarity_score = cosine_similarity_score[0][0]  
 
+        # wmd_score = self.__evaluateWMD(question1,question2)
+        levendis_score = sigmoid(self.__evaluateLevensteinDistance(question1, question2))
+
+        question1_tokens = question1.split()
+        question2_tokens = question2.split()
+
+        common_words = 0
+        for word in question1_tokens:
+            if word in question2_tokens:
+                common_words = common_words + 1
+
+        record = (cosine_similarity_score, levendis_score, len(question1_tokens), len(question2_tokens), common_words)
+
+        return record
+        
+
+    def __getTFIDFVectors(self, question1, question2):
+        
+        question1 = question1.lower()
+        question2 = question2.lower()
+
+        question1 = question1 if question1 != "nan" else ""
+        question2 = question2 if question2 != "nan" else ""
+
+        question1 = re.sub('\W+', ' ', question1)
+        question2 = re.sub('\W+', ' ', question2)
+
+        question1_tokens = question1.split()
+        question2_tokens = question2.split()
+
+        vocabulary = question1_tokens + question2_tokens
+        vocabulary = list(set(vocabulary))
+ 
+        vectorizer = TfidfVectorizer(analyzer='word', vocabulary=vocabulary)
+        vectorized_q1 = vectorizer.fit_transform([question1])
+        vectorized_q2 = vectorizer.transform([question2])
+
+        return vectorized_q1, vectorized_q2
+    
     def __evaluateCosineSimilarity(self, question1_vector, question2_vector):
         cosine_score = cosine_similarity(question1_vector, question2_vector)
         return cosine_score
@@ -104,16 +178,18 @@ class FeatureGenerator:
 class LogisticClassifier:
 
     start = 0
-
+    
+    def __init__(self, nfeatures):
+        self.nfeatures = nfeatures
+       
     def __createBatch(self,features,labels,batch_size):
         
         self.end = self.start + batch_size		
         
         batch_x = features[self.start:self.end]
-        batch_x = np.reshape(batch_x, (-1, 2))
         batch_y = labels[self.start:self.end]
         #batch_size = len(batch_y) if len(batch_y) < batch_size else batch_size
-        batch_y = np.reshape(batch_y, (-1,2))
+        batch_x, batch_y = self.__reshape(batch_x,batch_y)
 
         self.start = self.end
        
@@ -131,7 +207,17 @@ class LogisticClassifier:
             else:
               one_hot_label.append([0,1])
         return one_hot_label
-
+		
+		
+    def __reshape(self,inputs,labels=None):
+        if inputs != None:
+            inputs = np.reshape(inputs, (-1, self.nfeatures))
+        
+        if labels != None:
+            labels = np.reshape(labels, (-1, 2))
+        
+        return inputs,labels
+		
     #Try scikit, convert to one hot encoding
     # https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/2_BasicModels/logistic_regression.py
     #http://ischlag.github.io/2016/06/19/tensorflow-input-pipeline-example/
@@ -147,11 +233,11 @@ class LogisticClassifier:
         labels = self.__convertLabelsToOneHotVectors(labels)
 
         # tf Graph Input
-        self.x = tf.placeholder(tf.float32, [None, 2])
+        self.x = tf.placeholder(tf.float32, [None, self.nfeatures])
         self.y = tf.placeholder(tf.float32, [None, 2], name="classes") #convert to one hot encoding
 
         # Set model weights
-        W = tf.Variable(tf.zeros([2, 2]))
+        W = tf.Variable(tf.zeros([self.nfeatures, 2]))
         b = tf.Variable(tf.zeros([2]))
 
         # Construct model
@@ -202,6 +288,7 @@ class LogisticClassifier:
 
         test_inputs = np.asarray(test_inputs)
         test_labels = np.asarray(test_labels)
+        test_inputs,test_labels = self.__reshape(test_inputs,test_labels)
 
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
@@ -212,32 +299,35 @@ class LogisticClassifier:
             print("pred-->"+str(correct_prediction))
             # Calculate accuracy
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            test_inputs = np.reshape(test_inputs, (-1,2))
-            test_labels = np.reshape(test_labels, (-1,2))
-
+            
             print("Accuracy:", accuracy.eval({self.x: test_inputs, self.y: test_labels}))
 
     def predict(self,test_inputs):
         # Test model
+        result = None
+        test_inputs = np.asarray(test_inputs)
+        test_inputs = self.__reshape(test_inputs)[0]
+        #print(test_inputs)
+
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
             sess.run(init)
-            correct_prediction = tf.equal(tf.argmax(self.pred, 1), tf.argmax(self.y, 1))
-            print("pred"+correct_prediction)
-            # Calculate accuracy
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            result = sess.run(self.y, feed_dict={self.x: test_inputs})
+            predict = tf.argmax(self.pred,1)
+            result = predict.eval(feed_dict={self.x: test_inputs},session=sess)
                
-            return result
+        return result[0]
 
 
 if __name__ == '__main__':
-    featureGenerator = FeatureGenerator()
-    print(featureGenerator.generateTFIDFFeatures())
-
+    featureGenerator = QuoraFeatureGenerator()
+    #print(featureGenerator.generateTFIDFFeatures())
+    
+    featureGenerator.trainModel()
+    featureGenerator.predictTestData()
+    '''
     df = pd.read_pickle("./train_features.pkl")
-    x_df = df.iloc[:,4:9]
-    y_df = df.iloc[:,10]
+    x_df = df.iloc[:,2:7]
+    y_df = df.iloc[:,7]
 
     print(y_df)
     print(len(x_df))
@@ -256,8 +346,6 @@ if __name__ == '__main__':
     logistic_classifier.trainModel(train_df,train_labels)
     logistic_classifier.validateModel(test_df,test_labels)
    
-    df = pd.read_pickle("./test_features.pkl")
-    x_df = df.iloc[:,4:9]
     logistic_classifier.predict(x_df)
-    
+    '''
     
