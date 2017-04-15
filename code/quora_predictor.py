@@ -29,6 +29,8 @@ class QuoraFeatureGenerator:
         batch_records = {}
 
         with open("predicted.csv","a+") as op_file:
+            total_count = len(test_df) 
+            idx = 1
             for test_row in self.test_df.iterrows():
                 test_row = test_row[1]
                 id = test_row["test_id"]
@@ -51,9 +53,18 @@ class QuoraFeatureGenerator:
                         ct = ct+1 
 
                     batch_records = {}
-                
-        #return predictions
 
+            #Remaining batch
+            if len(batch_records)!=0:
+                op = self.model.predict(list(batch_records.values()))
+
+                ct = 0
+                for id in batch_records: 
+                    output = str(id)+","+str(op[ct])
+                    op_file.write(output+"\n")
+                    ct = ct+1 
+
+                
     def trainModel(self):
         df = pd.read_pickle("./train_features.pkl")
         x_df = pd.concat([df.iloc[:,4:6],df.iloc[:,8]],axis=1)
