@@ -79,12 +79,12 @@ def prepareTrainData():
 	
 	tokenized_train_data = []
 	vocabularies = []
-	
+	pattern = "[^0-9a-zA-Z\\s\\?\\.,]"
 	print(len(q1))
 	for i in range(0,len(q1)):
 		try:
-			token1 = re.sub("[^0-9a-zA-Z\\s]","",q1[i].decode("utf-8"))
-			token2 = re.sub("[^0-9a-zA-Z\\s]","",q2[i].decode("utf-8"))
+			token1 = re.sub(pattern," ",q1[i].decode("utf-8"))
+			token2 = re.sub(pattern," ",q2[i].decode("utf-8"))
 			#print(token1)
 			#print(token2)
 		except UnicodeDecodeError:
@@ -99,7 +99,7 @@ def prepareTrainData():
 	vocabCounter = Counter(vocabularies).most_common()
 	idx = len(main_vocab)
 	for i in vocabCounter:
-		if len(vocabularies) < MAX_NB_WORDS:
+		if len(main_vocab) < MAX_NB_WORDS:
 			main_vocab[i[0]] = idx
 			idx = idx+1
 			
@@ -117,9 +117,9 @@ def prepareTrainData():
 		qu2 = [main_vocab[tok] if tok in main_vocab else main_vocab[UNKNOWN] for tok in qu2]
 		
 		tokenized_train_data[i] = [qu1,qu2]
+		print(tokenized_train_data[i])
 			
-			
-	print(tokenized_train_data)
+	#print(tokenized_train_data)
 	
 	embedding_matrix = __prepareEmbeddingMatrix(main_vocab)				
 	pickle.dump(embedding_matrix,open("embedding_matrix.pkl","wb"))
@@ -134,7 +134,7 @@ def prepareTestData():
 	tokenized_test_data = []
 		
 	print(len(q1))
-	for i in range(0,100):
+	for i in range(0,len(q1)):
 		try:
 			token1 = re.sub("[^0-9a-zA-Z\\s]","",q1[i].decode("utf-8"))
 			token2 = re.sub("[^0-9a-zA-Z\\s]","",q2[i].decode("utf-8"))
@@ -189,7 +189,9 @@ def runModelWithEmbed():
 	train_q1 = sequence.pad_sequences(train_q1,maxlen=MAX_LENGTH)
 	train_q2 = sequence.pad_sequences(train_q2,maxlen=MAX_LENGTH)
 	
-	train_no = int(0.8 * len(train_q1))
+	#train_no = int(0.8 * len(train_q1))
+	train_no = 300000
+	end = 330000
 	train_q1 = np.asarray(train_q1)
 	train_q2 = np.asarray(train_q2)
 	
@@ -197,16 +199,18 @@ def runModelWithEmbed():
 	train_question2 = train_q2[0:train_no]
 	train_labels = labels[0:train_no]
 	
-	validate_question1 = train_q1[train_no:]
-	validate_question2 = train_q2[train_no:]
-	validate_labels = labels[train_no:]
+	validate_question1 = train_q1[train_no:end]
+	validate_question2 = train_q2[train_no:end]
+	validate_labels = labels[train_no:end]
+	
 	
 	print(np.asarray(train_q1).shape)
 	vocab_size = len(main_vocab)
 	siamese_nn = SiameseNN(EMBEDDING_DIM, MAX_LENGTH, vocab_size, embedding_matrix)
-	siamese_nn.trainModel(train_q1,train_q2,labels)
-	siamese_nn.validateModel(validate_question1,validate_question2,labels)
+	siamese_nn.trainModel(train_question1,train_question2,train_labels)
+	siamese_nn.validateModel(validate_question1,validate_question2,validate_labels)
 	
+	print("testing..")
 	test_data = prepareTestData()
 	test_q1 = [ rec[0] for rec in test_data]
 	test_q2 = [ rec[1] for rec in test_data]
@@ -214,8 +218,9 @@ def runModelWithEmbed():
 	test_q1 = sequence.pad_sequences(test_q1,maxlen=MAX_LENGTH)
 	test_q2 = sequence.pad_sequences(test_q2,maxlen=MAX_LENGTH)
 	
-	siamese_nn.predict(test_q1,test_q2)
-	
+	predictions = siamese_nn.predict(test_q1,test_q2)
+	pickle.dump(predictions,open("result.pkl","wb"))
+	generateResult()
 	
 
 def prepareTrainQuestionSets():	
@@ -242,7 +247,8 @@ def trainModel():
 	
 	print(len(question1))
 	#train_no = int(0.8 * len(question1))
-	train_no = 300000
+	train_no = 10000
+	end = 320000
 	print(train_no)
 	
 	question1 = np.asarray(question1)
@@ -252,8 +258,8 @@ def trainModel():
 	train_question2 = question2[0:train_no,0:n_features]
 	
 	train_labels = label[0:train_no]
-	test_question1 = question1[train_no:320000,0:n_features]
-	test_question2 = question2[train_no:320000,0:n_features]
+	test_question1 = question1[train_no:end,0:n_features]
+	test_question2 = question2[train_no:end,0:n_features]
 	test_labels = label[train_no:320000]
 	
 	

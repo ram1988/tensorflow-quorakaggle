@@ -23,7 +23,7 @@ class SiameseNN:
         self.max_length = max_length
         self.embedding_matrix = embedding_matrix
         self.vocab_size = vocab_size
-        
+        self.threshold = 0.5
        
     def __createBatch(self,input1=None,input2=None,labels=None,batch_size=None):
         
@@ -78,18 +78,23 @@ class SiameseNN:
         return input1,input2,labels
 
 
-    def buildRNN(self,x):
+    def buildRNN(self,x,scope):
         print(x)
         x = tf.transpose(x, [1, 0, 2])
+        print(x)
+        #x = tf.reshape(x, [-1,self.nfeatures])
         #print(x)
-        x = tf.reshape(x, [-1,self.nfeatures])
-        #print(x)
-        x = tf.split(x, self.n_steps, 0)
+        #x = tf.split(x, self.n_steps, 0)
 
-        lstm_cell = rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0)
-        #lstm_cell = rnn.MultiRNNCell([lstm_cell]*self.n_layers, state_is_tuple=True)
-        outputs, states = rnn.static_rnn(lstm_cell, x, dtype=tf.float64)
-        #outputs, states = tf.nn.dynamic_rnn(lstm_cell, x, dtype=tf.float64)
+        with tf.name_scope("fw"+scope),tf.variable_scope("fw"+scope):
+            print(tf.get_variable_scope().name)
+            fw_cell = rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+        with tf.name_scope("bw"+scope),tf.variable_scope("bw"+scope):
+            print(tf.get_variable_scope().name)
+            bw_cell = rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+        #lstm_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0) for _ in range(self.n_layers)], state_is_tuple=True)
+        #outputs, states = rnn.static_rnn(lstm_cell, x, dtype=tf.float64)
+        outputs, states = tf.nn.bidirectional_dynamic_rnn(fw_cell, bw_cell, x, dtype=tf.float64)
         print(outputs[-1])
 
         return outputs[-1]
@@ -98,15 +103,15 @@ class SiameseNN:
     def buildSiameseNN(self, left_nn, right_nn):
         distance = tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(left_nn,right_nn)),1,keep_dims=True))
         distance = tf.div(distance, tf.add(tf.sqrt(tf.reduce_sum(tf.square(left_nn),1,keep_dims=True)),tf.sqrt(tf.reduce_sum(tf.square(right_nn),1,keep_dims=True))))
-        #distance = tf.reshape(distance, [-1], name="distance")
+        distance = tf.reshape(distance, [-1], name="distance")
         return distance
 
     #http://stackoverflow.com/questions/36844909/siamese-neural-network-in-tensorflow
     #https://github.com/dhwajraj/deep-siamese-text-similarity/blob/master/siamese_network.py
     def trainModel(self, input1, input2, labels):
         # Parameters
-        learning_rate = 0.06
-        training_epochs = 10
+        learning_rate = 0.05
+        training_epochs = 2
         
         display_step = 1
 
@@ -126,15 +131,15 @@ class SiameseNN:
         print("Embedding-->"+str(self.x1))
         print("Embedding-->"+str(self.x2))
        
-        with tf.variable_scope('nn1'):
-            left_rnn = self.buildRNN(self.embedded_chars1)
-        with tf.variable_scope('nn2'):
-            right_rnn = self.buildRNN(self.embedded_chars2)
+        with tf.variable_scope('nn1') as scope1:
+            left_rnn = self.buildRNN(self.embedded_chars1,"nn1_side")
+        with tf.variable_scope('nn2') as scope2:
+            right_rnn = self.buildRNN(self.embedded_chars2,"nn2_side")
            
         self.distance = self.buildSiameseNN(left_rnn,right_rnn)
         
         # Minimize error using cross entropy
-        self.pred = tf.reshape(self.distance, [-1], name="distance")
+        self.pred = self.distance 
         cost = tf.reduce_mean(-tf.reduce_sum(self.y * tf.log(self.pred), reduction_indices=1))
 
         # Gradient Descent
@@ -239,8 +244,9 @@ class SiameseNN:
                 #Compute Accuracy
                 predictions = np.asarray(predictions)
                 print(predictions)
-                onezero = predictions.ravel() < 0.8
+                onezero = predictions.ravel() < self.threshold
                 onezero = [ 1 if i else 0 for i in onezero]
+                print(onezero)
                 predictions = tf.equal(onezero,batch_ys)
                 batch_accuracy = tf.reduce_mean(tf.cast(predictions, "float"), name="accuracy")
                 batch_accuracy = batch_accuracy.eval()
@@ -280,7 +286,7 @@ class SiameseNN:
                 print(len(batch_x1))
                 predictions = sess.run([self.distance], feed_dict={self.x1: batch_x1, self.x2: batch_x2})
                 predictions = np.asarray(predictions)[0]
-                onezero = predictions.ravel() < 0.8
+                onezero = predictions.ravel() < self.threshold
                 onezero = [ 1 if i else 0 for i in onezero]
                 print(onezero)
                 result.append(onezero)
