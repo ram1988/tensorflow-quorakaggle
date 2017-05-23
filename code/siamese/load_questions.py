@@ -117,7 +117,7 @@ def prepareTrainData():
 		qu2 = [main_vocab[tok] if tok in main_vocab else main_vocab[UNKNOWN] for tok in qu2]
 		
 		tokenized_train_data[i] = [qu1,qu2]
-		print(tokenized_train_data[i])
+		#print(tokenized_train_data[i])
 			
 	#print(tokenized_train_data)
 	
@@ -189,9 +189,9 @@ def runModelWithEmbed():
 	train_q1 = sequence.pad_sequences(train_q1,maxlen=MAX_LENGTH)
 	train_q2 = sequence.pad_sequences(train_q2,maxlen=MAX_LENGTH)
 	
-	#train_no = int(0.8 * len(train_q1))
-	train_no = 300000
-	end = 330000
+	train_no = int(0.8 * len(train_q1))
+	#train_no = 300000
+	#end = 320000
 	train_q1 = np.asarray(train_q1)
 	train_q2 = np.asarray(train_q2)
 	
@@ -199,9 +199,9 @@ def runModelWithEmbed():
 	train_question2 = train_q2[0:train_no]
 	train_labels = labels[0:train_no]
 	
-	validate_question1 = train_q1[train_no:end]
-	validate_question2 = train_q2[train_no:end]
-	validate_labels = labels[train_no:end]
+	validate_question1 = train_q1[train_no:]
+	validate_question2 = train_q2[train_no:]
+	validate_labels = labels[train_no:]
 	
 	
 	print(np.asarray(train_q1).shape)
@@ -212,6 +212,7 @@ def runModelWithEmbed():
 	
 	print("testing..")
 	test_data = prepareTestData()
+	#test_data = test_data[0:10000]
 	test_q1 = [ rec[0] for rec in test_data]
 	test_q2 = [ rec[1] for rec in test_data]
 	
@@ -246,9 +247,9 @@ def trainModel():
 	total_len = len(question1)
 	
 	print(len(question1))
-	#train_no = int(0.8 * len(question1))
-	train_no = 10000
-	end = 320000
+	train_no = int(0.8 * len(question1))
+	#train_no = 10000
+	#end = 320000
 	print(train_no)
 	
 	question1 = np.asarray(question1)
@@ -260,7 +261,7 @@ def trainModel():
 	train_labels = label[0:train_no]
 	test_question1 = question1[train_no:end,0:n_features]
 	test_question2 = question2[train_no:end,0:n_features]
-	test_labels = label[train_no:320000]
+	test_labels = label[train_no:]
 	
 	
 	siamese_nn = SiameseNN(n_features,10000)
@@ -287,6 +288,7 @@ def testModel(siamese_nn=None):
 def generateResult():
 	result = pickle.load(open("result.pkl","rb"))
 	print(len(result))
+	print(np.asarray(result).shape)
 	
 	
 	with open("predicted.csv","a+") as op_file:

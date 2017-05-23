@@ -18,12 +18,13 @@ class SiameseNN:
         self.nfeatures = nfeatures
         self.n_hidden = nfeatures/2
         self.n_steps = max_length
-        self.n_layers = 2
+        self.n_layers = 3
         self.batch_size = 1000
+        self.dropout = 0.75
         self.max_length = max_length
         self.embedding_matrix = embedding_matrix
         self.vocab_size = vocab_size
-        self.threshold = 0.5
+        self.threshold = 0.7
        
     def __createBatch(self,input1=None,input2=None,labels=None,batch_size=None):
         
@@ -81,22 +82,30 @@ class SiameseNN:
     def buildRNN(self,x,scope):
         print(x)
         x = tf.transpose(x, [1, 0, 2])
-        print(x)
-        #x = tf.reshape(x, [-1,self.nfeatures])
         #print(x)
-        #x = tf.split(x, self.n_steps, 0)
-
+        x = tf.reshape(x, [-1,self.nfeatures])
+        #print(x)
+        x = tf.split(x, self.n_steps, 0)
+        print(x)
+        #lstm_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0) for _ in range(self.n_layers)], state_is_tuple=True)
+        #outputs, states = tf.nn.dynamic_rnn(lstm_cell, x, dtype=tf.float64)
         with tf.name_scope("fw"+scope),tf.variable_scope("fw"+scope):
             print(tf.get_variable_scope().name)
             fw_cell = rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
+            fw_cell = rnn.DropoutWrapper(fw_cell,output_keep_prob=self.dropout)
         with tf.name_scope("bw"+scope),tf.variable_scope("bw"+scope):
             print(tf.get_variable_scope().name)
             bw_cell = rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0, state_is_tuple=True)
-        #lstm_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0) for _ in range(self.n_layers)], state_is_tuple=True)
-        #outputs, states = rnn.static_rnn(lstm_cell, x, dtype=tf.float64)
-        outputs, states = tf.nn.bidirectional_dynamic_rnn(fw_cell, bw_cell, x, dtype=tf.float64)
-        print(outputs[-1])
+            bw_cell = rnn.DropoutWrapper(bw_cell,output_keep_prob=self.dropout)
 
+        lstm_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(self.n_hidden, forget_bias=1.0) for _ in range(self.n_layers)], state_is_tuple=True)
+        outputs, _,_ = tf.contrib.rnn.static_bidirectional_rnn(fw_cell, bw_cell, x, dtype=tf.float64)
+        #outputs, = tf.nn.bidirectional_dynamic_rnn(fw_cell, bw_cell, x, dtype=tf.float64)
+
+        
+        print(outputs)
+        print(outputs[-1])
+        
         return outputs[-1]
 
 		
@@ -243,10 +252,11 @@ class SiameseNN:
                 #predictions = tf.reshape(predictions, [-1], name="distance")
                 #Compute Accuracy
                 predictions = np.asarray(predictions)
-                print(predictions)
+                #print(predictions)
                 onezero = predictions.ravel() < self.threshold
                 onezero = [ 1 if i else 0 for i in onezero]
                 print(onezero)
+                print(len(onezero))
                 predictions = tf.equal(onezero,batch_ys)
                 batch_accuracy = tf.reduce_mean(tf.cast(predictions, "float"), name="accuracy")
                 batch_accuracy = batch_accuracy.eval()
@@ -289,6 +299,7 @@ class SiameseNN:
                 onezero = predictions.ravel() < self.threshold
                 onezero = [ 1 if i else 0 for i in onezero]
                 print(onezero)
+                print(len(onezero))
                 result.append(onezero)
                 #print(result)
                
