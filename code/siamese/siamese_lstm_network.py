@@ -25,8 +25,11 @@ class SiameseNN:
         self.embedding_matrix = embedding_matrix
         self.vocab_size = vocab_size
         self.threshold = 0.7
+<<<<<<< HEAD
         self.learning_rate = 0.05
        
+=======
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
        
     def __createBatch(self,input1=None,input2=None,labels=None,batch_size=None):
         
@@ -137,8 +140,13 @@ class SiameseNN:
     #https://github.com/dhwajraj/deep-siamese-text-similarity/blob/master/siamese_network.py
     def trainModel(self, input1, input2, labels, one_hot_encoding=False):
         # Parameters
+<<<<<<< HEAD
         
         training_epochs = 3
+=======
+        learning_rate = 0.05
+        training_epochs = 2
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
         
         display_step = 1
 
@@ -149,6 +157,7 @@ class SiameseNN:
 
         # Set model weights
         # tf Graph input
+<<<<<<< HEAD
         #self.x1 = tf.placeholder(tf.int32, [None,self.max_length]) # batch_size x sentence_length
         #self.x2 = tf.placeholder(tf.int32, [None,self.max_length])
         #self.y = tf.placeholder(tf.float64, [None,1])
@@ -160,6 +169,14 @@ class SiameseNN:
         self.embedded_chars1 = tf.nn.embedding_lookup(self.embedding_matrix, self.x1,name="lookup1") # batch_size x sent_length x embedding_size
         self.embedded_chars2 = tf.nn.embedding_lookup(self.embedding_matrix, self.x2,name="lookup2")
        
+=======
+        self.x1 = tf.placeholder(tf.int32, [None,self.max_length]) # batch_size x sentence_length
+        self.x2 = tf.placeholder(tf.int32, [None,self.max_length])
+        self.y = tf.placeholder(tf.float64, [None,1])
+        #self.W = tf.Variable(tf.random_normal([self.vocab_size-1,self.nfeatures]),name='embeddings')
+        self.embedded_chars1 = tf.nn.embedding_lookup(self.embedding_matrix, self.x1,name="lookup1") # batch_size x sent_length x embedding_size
+        self.embedded_chars2 = tf.nn.embedding_lookup(self.embedding_matrix, self.x2,name="lookup2")
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
         print("Embedding-->"+str(self.embedded_chars1))
         print("Embedding-->"+str(self.embedded_chars2))
         print("Embedding-->"+str(self.x1))
@@ -170,10 +187,16 @@ class SiameseNN:
         with tf.variable_scope('nn2') as scope2:
             right_rnn = self.buildRNN(self.embedded_chars2,"nn2_side")
            
+<<<<<<< HEAD
         self.pred = self.buildSiameseNN(left_rnn,right_rnn)
         
         # Minimize error using cross entropy
         '''
+=======
+        self.distance = self.buildSiameseNN(left_rnn,right_rnn)
+        
+        # Minimize error using cross entropy
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
         self.pred = self.distance 
         cost = tf.reduce_mean(-tf.reduce_sum(self.y * tf.log(self.pred), reduction_indices=1))
 
@@ -195,7 +218,11 @@ class SiameseNN:
             input2 = np.asarray(input2)
             labels = np.asarray(labels)
  
+<<<<<<< HEAD
             input1, input2, labels = self.reshape(input1,input2,labels)
+=======
+            input1, input2, labels = self.__reshape(input1,input2,labels)
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
             
             # Training cycle
             # Change code accordingly
@@ -219,7 +246,11 @@ class SiameseNN:
                 if (epoch + 1) % display_step == 0:
                     #-1304 cost :0
                     print("Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(avg_cost))
+<<<<<<< HEAD
             tf.add_to_collection("distance", self.pred)
+=======
+            tf.add_to_collection("distance", self.distance)
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
             tf.add_to_collection("x1", self.x1)
             tf.add_to_collection("x2", self.x2)
             tf.add_to_collection("y", self.y)
@@ -241,7 +272,11 @@ class SiameseNN:
         print("Test2--->"+str(len(test_input2)))
         
          
+<<<<<<< HEAD
         test_input1,test_input2,test_labels = self.reshape(test_input1,test_input2,test_labels)
+=======
+        test_input1,test_input2,test_labels = self.__reshape(test_input1,test_input2,test_labels)
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
 
         # tf Graph input
         #self.x1 = tf.placeholder("float", [None,self.nfeatures,1],"x1")
@@ -269,9 +304,27 @@ class SiameseNN:
             for i in range(total_batch):
                 batch_x1,batch_x2,batch_ys = self.__createBatch(test_input1,test_input2,test_labels,self.batch_size)
                 print(len(batch_x1))
+<<<<<<< HEAD
                 predictions = sess.run([self.pred], feed_dict={self.x1: batch_x1, self.x2: batch_x2})
                 #Compute Accuracy
                 batch_accuracy = self.evaluateResults(predictions,batch_ys)
+=======
+                predictions = sess.run([self.distance], feed_dict={self.x1: batch_x1, self.x2: batch_x2})
+                #predictions = self.distance.eval(feed_dict={self.x1: batch_x1, self.x2: batch_x2})
+                # Test model
+                #predictions = tf.reshape(predictions, [-1], name="distance")
+                #Compute Accuracy
+                predictions = np.asarray(predictions)
+                #print(predictions)
+                onezero = predictions.ravel() < self.threshold
+                onezero = [ 1 if i else 0 for i in onezero]
+                print(onezero)
+                print(len(onezero))
+                predictions = tf.equal(onezero,batch_ys)
+                batch_accuracy = tf.reduce_mean(tf.cast(predictions, "float"), name="accuracy")
+                batch_accuracy = batch_accuracy.eval()
+                #batch_accuracy = accuracy.eval({self.x1: batch_x1, self.x2: batch_x2,self.y: batch_ys})				
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
                 overall_accuracy = overall_accuracy + batch_accuracy
                 print("Accuracy:", batch_accuracy)
             overall_accuracy = overall_accuracy / total_batch
@@ -317,9 +370,16 @@ class SiameseNN:
                 batch_x1,batch_x2 = self.__createBatch(test_input1,test_input2,batch_size=self.batch_size)
                 
                 print(len(batch_x1))
+<<<<<<< HEAD
                 predictions = sess.run([self.pred], feed_dict={self.x1: batch_x1, self.x2: batch_x2})
                 onezero = self.generatePrediction(predictions)
                 
+=======
+                predictions = sess.run([self.distance], feed_dict={self.x1: batch_x1, self.x2: batch_x2})
+                predictions = np.asarray(predictions)[0]
+                onezero = predictions.ravel() < self.threshold
+                onezero = [ 1 if i else 0 for i in onezero]
+>>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
                 print(onezero)
                 print(len(onezero))
                 result.append(onezero)
