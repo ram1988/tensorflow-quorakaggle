@@ -191,18 +191,8 @@ def runModelWithEmbed():
 	train_q2 = sequence.pad_sequences(train_q2,maxlen=MAX_LENGTH)
 	
 	train_no = int(0.8 * len(train_q1))
-<<<<<<< HEAD
 	#train_no = 10000
 	#end = 12000
-=======
-<<<<<<< HEAD
-	#train_no = 10000
-	#end = 12000
-=======
-	#train_no = 300000
-	#end = 320000
->>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
->>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
 	train_q1 = np.asarray(train_q1)
 	train_q2 = np.asarray(train_q2)
 	
@@ -217,22 +207,10 @@ def runModelWithEmbed():
 	
 	print(np.asarray(train_q1).shape)
 	vocab_size = len(main_vocab)
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
 	#siamese_nn = SiameseNN(EMBEDDING_DIM, MAX_LENGTH, vocab_size, embedding_matrix)
 	siamese_nn = SiameseNNWithDenseLayer(EMBEDDING_DIM, MAX_LENGTH, vocab_size, embedding_matrix)
 	siamese_nn.trainModel(train_question1,train_question2,train_labels,one_hot_encoding=True)
 	siamese_nn.validateModel(validate_question1,validate_question2,validate_labels,one_hot_encoding=True)
-<<<<<<< HEAD
-=======
-=======
-	siamese_nn = SiameseNN(EMBEDDING_DIM, MAX_LENGTH, vocab_size, embedding_matrix)
-	siamese_nn.trainModel(train_question1,train_question2,train_labels)
-	siamese_nn.validateModel(validate_question1,validate_question2,validate_labels)
->>>>>>> d13fe51d3c350c3307caab83ea60ba395cdd63f3
->>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
 	
 	print("testing..")
 	test_data = prepareTestData()
