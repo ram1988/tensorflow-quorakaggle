@@ -10,7 +10,11 @@ import numpy as np
 from tensorflow.contrib import rnn
 from siamese_lstm_network import SiameseNN
 
+<<<<<<< HEAD
 #Next with convolution layer and batch normalization
+=======
+
+>>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
 class SiameseNNWithDenseLayer(SiameseNN):
 
     start = 0
@@ -25,7 +29,10 @@ class SiameseNNWithDenseLayer(SiameseNN):
         self.x1 = tf.placeholder(tf.int32, [None,self.max_length]) # batch_size x sentence_length
         self.x2 = tf.placeholder(tf.int32, [None,self.max_length])
         self.y = tf.placeholder(tf.float64, [None,2])
+<<<<<<< HEAD
         self.batch_size = 1000
+=======
+>>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
         self.learning_rate = 0.05
 		
     def reshape(self,input1,input2,labels=None):
@@ -58,11 +65,17 @@ class SiameseNNWithDenseLayer(SiameseNN):
         batch_accuracy = batch_accuracy.eval()
         
         return batch_accuracy
+<<<<<<< HEAD
 		
 		
 
     def buildSiameseNN(self, left_nn, right_nn):
         #construct fully connected layer-extend even more networks
+=======
+
+    def buildSiameseNN(self, left_nn, right_nn):
+        #construct fully connected layer
+>>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
         print(self.nfeatures)
         weights = {
           'out': tf.Variable(tf.random_normal([2*self.nfeatures, self.n_classes],dtype=tf.float64),dtype = tf.float64)
@@ -73,9 +86,13 @@ class SiameseNNWithDenseLayer(SiameseNN):
            
         joint_layer = tf.concat([left_nn,right_nn],1)
         print("joint layer-->"+str(joint_layer))
+<<<<<<< HEAD
         batch_normalized = self.insertBatchNNLayer(joint_layer,[0],[2*self.nfeatures])        
         batch_normalized = tf.matmul(batch_normalized, weights['out']) + biases['out']
         result = tf.nn.softmax(batch_normalized)
+=======
+        result = tf.nn.softmax(tf.matmul(joint_layer, weights['out']) + biases['out'])
+>>>>>>> 6fb8a8c42329b2c7c6bb0220d5fa019721a59a86
         #add softmax layer
         return result
 	
